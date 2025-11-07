@@ -15,9 +15,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.aitsuki.compose.form.sample.LocalBackStack
 import com.aitsuki.compose.form.sample.Routes
+import com.aitsuki.compose.form.sample.models.User
 
 @Composable
-fun HomeScreen() {
+fun ProfileScreen(user: User) {
     val backStack = LocalBackStack.current
     Scaffold { innerPadding ->
         Column(
@@ -27,12 +28,15 @@ fun HomeScreen() {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            Text("邮箱：${user.email}")
+            Text("职业: ${user.occupation}")
+            Text("收入: ${user.annualIncome}")
             Spacer(Modifier.height(16.dp))
             Button(onClick = {
                 backStack.add(0, Routes.Start)
                 backStack.removeAll({ it != Routes.Start })
             }) {
-                Text("Login out")
+                Text("退出登录")
             }
         }
     }

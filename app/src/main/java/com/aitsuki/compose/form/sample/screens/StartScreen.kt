@@ -49,13 +49,13 @@ fun StartScreen() {
             Button(
                 modifier = Modifier.fillMaxWidth(),
                 onClick = { backStack.add(Routes.Login) }) {
-                Text("Login")
+                Text("登录")
             }
             Button(
                 modifier = Modifier.fillMaxWidth(),
                 onClick = { backStack.add(Routes.Register) }
             ) {
-                Text("Register")
+                Text("注册")
             }
         }
     }

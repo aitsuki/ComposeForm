@@ -7,7 +7,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
-import com.aitsuki.compose.form.sample.screens.HomeScreen
+import com.aitsuki.compose.form.sample.models.User
+import com.aitsuki.compose.form.sample.screens.ProfileScreen
 import com.aitsuki.compose.form.sample.screens.LoginScreen
 import com.aitsuki.compose.form.sample.screens.RegisterScreen
 import com.aitsuki.compose.form.sample.screens.StartScreen
@@ -16,7 +17,7 @@ object Routes {
     data object Start
     data object Login
     data object Register
-    data object Home
+    data class Profile(val user: User)
 }
 
 val LocalBackStack =
@@ -43,8 +44,8 @@ fun AppNavDisplay() {
                         RegisterScreen()
                     }
 
-                    is Routes.Home -> NavEntry(key) {
-                        HomeScreen()
+                    is Routes.Profile -> NavEntry(key) {
+                        ProfileScreen(key.user)
                     }
 
                     else -> error("Unknown route: $key")

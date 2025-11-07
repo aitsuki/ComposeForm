@@ -16,7 +16,6 @@ class FieldState<T>(
     val validator: FieldValidator<T>? = null,
     val dependencies: Set<String> = emptySet(),
 ) {
-    // 拆分为独立 State，避免 copy 导致全字段重组
     val value = mutableStateOf(initialValue)
     val error = mutableStateOf<String?>(null)
     val isDirty = mutableStateOf(false)
@@ -29,16 +28,29 @@ class FormController(
     var autoValidate by mutableStateOf(false)
     private val fields = mutableMapOf<String, FieldState<*>>()
 
+    private val fieldOrder = mutableListOf<String>()
+
+    fun declareFieldOrder(name: String) {
+        if (!fieldOrder.contains(name)) {
+            fieldOrder.add(name)
+        }
+    }
+
     @Suppress("UNCHECKED_CAST")
     fun <T> registerField(
         name: String,
         dependencies: Set<String> = emptySet(),
         validator: FieldValidator<T>? = null
     ): FieldState<T> {
-        return fields.getOrPut(name) {
-            val init = initialValues[name] as? T
-            FieldState(init, validator, dependencies)
+        val field = fields.getOrPut(name) {
+            FieldState(initialValues[name] as? T, validator, dependencies)
         } as FieldState<T>
+
+        if (autoValidate) {
+            validateField(name)
+            validateDependentFields(name)
+        }
+        return field
     }
 
     fun unregisterField(name: String) {
@@ -81,13 +93,18 @@ class FormController(
 
     fun validate(): Boolean {
         var allValid = true
-        for (name in fields.keys) {
+        for (name in fieldOrder) {
+            if (!fields.containsKey(name)) continue
             if (!validateField(name)) allValid = false
         }
         return allValid
     }
 
-    fun getFieldValues(): Map<String, Any?> = fields.mapValues { (_, f) -> f.value.value }
+    fun <T> value(name: String): T? = getField<T>(name)?.value?.value
+
+    fun values(): Map<String, Any?> = fieldOrder.associateWith { fields[it]?.value?.value }
+
+    fun firstErrorFieldName(): String? = fieldOrder.firstOrNull { fields[it]?.error?.value != null }
 }
 
 class FieldRenderScope<T>(
@@ -110,18 +127,16 @@ fun <T> FormField(
     validator: FieldValidator<T>? = null,
     content: @Composable FieldRenderScope<T>.() -> Unit,
 ) {
+    LaunchedEffect(Unit) {
+        controller.declareFieldOrder(name)
+    }
+
     val field = remember(name, visible) {
         if (visible) controller.registerField(name, dependencies, validator) else null
     }
 
     LaunchedEffect(visible) {
         if (!visible) controller.unregisterField(name)
-    }
-
-    LaunchedEffect(visible) {
-        if (!visible) {
-            controller.unregisterField(name)
-        }
     }
 
     if (field != null && visible) {

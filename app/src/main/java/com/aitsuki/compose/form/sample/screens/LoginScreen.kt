@@ -25,6 +25,7 @@ import com.aitsuki.compose.form.FormField
 import com.aitsuki.compose.form.rememberFormController
 import com.aitsuki.compose.form.sample.LocalBackStack
 import com.aitsuki.compose.form.sample.Routes
+import com.aitsuki.compose.form.sample.models.User
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,7 +36,7 @@ fun LoginScreen() {
 
     Scaffold(
         modifier = Modifier.imePadding(),
-        topBar = { CenterAlignedTopAppBar(title = { Text("Login") }) }
+        topBar = { CenterAlignedTopAppBar(title = { Text("登录") }) }
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -49,8 +50,8 @@ fun LoginScreen() {
                 name = "email",
                 validator = { v ->
                     when {
-                        v.isNullOrBlank() -> "Email is required"
-                        !Patterns.EMAIL_ADDRESS.matcher(v).matches() -> "Invalid email format"
+                        v.isNullOrBlank() -> "请输入邮箱"
+                        !Patterns.EMAIL_ADDRESS.matcher(v).matches() -> "邮箱格式不正确"
                         else -> null
                     }
                 },
@@ -59,7 +60,7 @@ fun LoginScreen() {
                     modifier = Modifier.fillMaxWidth(),
                     value = value.orEmpty(),
                     onValueChange = onValueChange,
-                    label = { Text("Email") },
+                    label = { Text("邮箱") },
                     isError = error != null,
                     supportingText = { error?.let { Text(it) } },
                 )
@@ -69,9 +70,9 @@ fun LoginScreen() {
                 name = "password",
                 validator = { v ->
                     when {
-                        v.isNullOrBlank() -> "Password is required"
-                        v.length < 6 -> "Password must be at least 6 characters"
-                        v.length > 20 -> "Password must be at most 20 characters"
+                        v.isNullOrBlank() -> "请输入密码"
+                        v.length < 6 -> "密码长度最小为6"
+                        v.length > 20 -> "密码长度最大为20"
                         else -> null
                     }
                 }
@@ -80,7 +81,7 @@ fun LoginScreen() {
                     modifier = Modifier.fillMaxWidth(),
                     value = value.orEmpty(),
                     onValueChange = onValueChange,
-                    label = { Text("Password") },
+                    label = { Text("密码") },
                     isError = error != null,
                     supportingText = { error?.let { Text(it) } }
                 )
@@ -90,16 +91,17 @@ fun LoginScreen() {
                 modifier = Modifier.fillMaxWidth(),
                 onClick = {
                     if (controller.validate()) {
-                        Toast.makeText(context, "Login Success", Toast.LENGTH_SHORT).show()
-                        backStack.add(Routes.Home)
-                        backStack.removeAll { it != Routes.Home }
+                        Toast.makeText(context, "登录成功！", Toast.LENGTH_SHORT).show()
+                        val user = User(email = controller.value<String>("email").orEmpty())
+                        backStack.add(Routes.Profile(user))
+                        backStack.removeAll { it !is Routes.Profile }
                     } else {
                         controller.autoValidate = true
-                        Toast.makeText(context, "Please check form error", Toast.LENGTH_SHORT)
+                        Toast.makeText(context, "请检查表单错误", Toast.LENGTH_SHORT)
                             .show()
                     }
                 }) {
-                Text("Login")
+                Text("登录")
             }
         }
     }
