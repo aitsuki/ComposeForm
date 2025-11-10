@@ -26,8 +26,11 @@ class FormController(
     private val initialValues: Map<String, Any?> = emptyMap(),
 ) {
     var autoValidate by mutableStateOf(false)
+    // 当前注册的Fields
     private val fields = mutableMapOf<String, FieldState<*>>()
-
+    // 所有注册过的Fields
+    private val fieldRecord = mutableSetOf<String>()
+    // Field的注册顺序，用于保持字段显示隐藏后的表单顺序
     private val fieldOrder = mutableListOf<String>()
 
     fun declareFieldOrder(name: String) {
@@ -39,11 +42,19 @@ class FormController(
     @Suppress("UNCHECKED_CAST")
     fun <T> registerField(
         name: String,
+        initialValue: T? = null,
         dependencies: Set<String> = emptySet(),
         validator: FieldValidator<T>? = null
     ): FieldState<T> {
         val field = fields.getOrPut(name) {
-            FieldState(initialValues[name] as? T, validator, dependencies)
+            val value = if (!fieldRecord.contains(name)) {
+                // 首次注册才使用缓存
+                initialValues[name] as? T ?: initialValue
+            } else {
+                initialValue
+            }
+            fieldRecord.add(name)
+            FieldState(value, validator, dependencies)
         } as FieldState<T>
 
         if (autoValidate) {
@@ -122,6 +133,7 @@ fun rememberFormController(initialValues: Map<String, Any?> = emptyMap()): FormC
 fun <T> FormField(
     controller: FormController,
     name: String,
+    initialValue: T? = null,
     dependencies: Set<String> = emptySet(),
     visible: Boolean = true,
     validator: FieldValidator<T>? = null,
@@ -132,7 +144,7 @@ fun <T> FormField(
     }
 
     val field = remember(name, visible) {
-        if (visible) controller.registerField(name, dependencies, validator) else null
+        if (visible) controller.registerField(name, initialValue, dependencies, validator) else null
     }
 
     LaunchedEffect(visible) {
