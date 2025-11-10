@@ -30,10 +30,10 @@ class FormController(
     private val fields = mutableMapOf<String, FieldState<*>>()
     // 所有注册过的Fields
     private val fieldRecord = mutableSetOf<String>()
-    // Field的注册顺序，用于保持字段显示隐藏后的表单顺序
+    // Field的声明顺序，用于保持字段显示隐藏后的表单顺序
     private val fieldOrder = mutableListOf<String>()
 
-    fun declareFieldOrder(name: String) {
+    internal fun ensureFieldOrder(name: String) {
         if (!fieldOrder.contains(name)) {
             fieldOrder.add(name)
         }
@@ -139,8 +139,9 @@ fun <T> FormField(
     validator: FieldValidator<T>? = null,
     content: @Composable FieldRenderScope<T>.() -> Unit,
 ) {
+    // 确保字段顺序在组合时就被记录
     LaunchedEffect(Unit) {
-        controller.declareFieldOrder(name)
+        controller.ensureFieldOrder(name)
     }
 
     val field = remember(name, visible) {
