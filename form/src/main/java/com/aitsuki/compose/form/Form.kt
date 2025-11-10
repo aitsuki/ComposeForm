@@ -3,119 +3,89 @@
 package com.aitsuki.compose.form
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-
-typealias FieldValidator<T> = (T?) -> String?
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.collectLatest
 
 class FieldState<T>(
-    initialValue: T? = null,
-    val validator: FieldValidator<T>? = null,
-    val dependencies: Set<String> = emptySet(),
+    val key: String,
+    initial: T,
+    val validator: (T) -> String?,
 ) {
-    val value = mutableStateOf(initialValue)
-    val error = mutableStateOf<String?>(null)
-    val isDirty = mutableStateOf(false)
-}
-
-
-class FormController(
-    private val initialValues: Map<String, Any?> = emptyMap(),
-) {
-    var autoValidate by mutableStateOf(false)
-    // 当前注册的Fields
-    private val fields = mutableMapOf<String, FieldState<*>>()
-    // 所有注册过的Fields
-    private val fieldRecord = mutableSetOf<String>()
-    // Field的声明顺序，用于保持字段显示隐藏后的表单顺序
-    private val fieldOrder = mutableListOf<String>()
-
-    internal fun ensureFieldOrder(name: String) {
-        if (!fieldOrder.contains(name)) {
-            fieldOrder.add(name)
-        }
-    }
-
-    @Suppress("UNCHECKED_CAST")
-    fun <T> registerField(
-        name: String,
-        initialValue: T? = null,
-        dependencies: Set<String> = emptySet(),
-        validator: FieldValidator<T>? = null
-    ): FieldState<T> {
-        val field = fields.getOrPut(name) {
-            val value = if (!fieldRecord.contains(name)) {
-                // 首次注册才使用缓存
-                initialValues[name] as? T ?: initialValue
-            } else {
-                initialValue
-            }
-            fieldRecord.add(name)
-            FieldState(value, validator, dependencies)
-        } as FieldState<T>
-
-        if (autoValidate) {
-            validateField(name)
-            validateDependentFields(name)
-        }
-        return field
-    }
-
-    fun unregisterField(name: String) {
-        fields.remove(name)
-        if (autoValidate) {
-            validateDependentFields(name)
-        }
-    }
-
-    @Suppress("UNCHECKED_CAST")
-    private fun <T> getField(name: String): FieldState<T>? =
-        fields[name] as? FieldState<T>
-
-
-    fun <T> updateField(name: String, newValue: T) {
-        val field = getField<T>(name) ?: return
-        field.value.value = newValue
-        field.isDirty.value = true
-
-        if (autoValidate) {
-            validateField(name)
-            validateDependentFields(name)
-        }
-    }
-
-    private fun validateDependentFields(changedFieldName: String) {
-        for ((name, field) in fields) {
-            if (changedFieldName in field.dependencies) {
-                validateField(name)
-            }
-        }
-    }
-
-    private fun validateField(name: String): Boolean {
-        val field = getField<Any>(name) ?: return true
-        val error = field.validator?.invoke(field.value.value)
-        field.error.value = error
-        return error == null
-    }
+    var value by mutableStateOf(initial)
+    var error by mutableStateOf<String?>(null)
 
     fun validate(): Boolean {
-        var allValid = true
-        for (name in fieldOrder) {
-            if (!fields.containsKey(name)) continue
-            if (!validateField(name)) allValid = false
-        }
-        return allValid
+        error = validator(value)
+        return error == null
+    }
+}
+
+@Composable
+fun <T> rememberFieldState(key: String, initial: T, validator: (T) -> String?): FieldState<T> {
+    return remember { FieldState(key, initial, validator) }
+}
+
+class FormController {
+    private val _fields = mutableStateListOf<FieldState<*>>()
+    val fields: List<FieldState<*>> get() = _fields
+
+    fun updateFields(newList: List<FieldState<*>>) {
+        _fields.clear()
+        _fields.addAll(newList)
     }
 
-    fun <T> value(name: String): T? = getField<T>(name)?.value?.value
+    fun validateAll(): Boolean {
+        var ok = true
+        _fields.forEach { if (!it.validate()) ok = false }
+        return ok
+    }
 
-    fun values(): Map<String, Any?> = fieldOrder.associateWith { fields[it]?.value?.value }
+    fun firstInvalid(): FieldState<*>? = _fields.firstOrNull { it.error != null }
+}
 
-    fun firstErrorFieldName(): String? = fieldOrder.firstOrNull { fields[it]?.error?.value != null }
+val LocalFormCollector = compositionLocalOf<MutableList<FieldState<*>>> {
+    error("No LocalFormCollector found")
+}
+
+@Composable
+fun rememberFormController(): FormController {
+    return remember { FormController() }
+}
+
+@Composable
+fun Form(
+    controller: FormController,
+    autoValidate: Boolean = false,
+    content: @Composable () -> Unit
+) {
+    val collectedFields = remember { mutableStateListOf<FieldState<*>>() }
+    collectedFields.clear()
+
+    CompositionLocalProvider(LocalFormCollector provides collectedFields) {
+        content()
+    }
+
+    // 同步字段顺序到 controller
+    LaunchedEffect(collectedFields) {
+        snapshotFlow { collectedFields.toList() }
+            .collectLatest { controller.updateFields(it) }
+    }
+
+    // 自动校验
+    if (autoValidate) {
+        LaunchedEffect(collectedFields) {
+            snapshotFlow { collectedFields.map { it.value } }
+                .collectLatest { collectedFields.forEach { it.validate() } }
+        }
+    }
 }
 
 class FieldRenderScope<T>(
@@ -125,41 +95,12 @@ class FieldRenderScope<T>(
 )
 
 @Composable
-fun rememberFormController(initialValues: Map<String, Any?> = emptyMap()): FormController {
-    return remember { FormController(initialValues) }
-}
-
-@Composable
-fun <T> FormField(
-    controller: FormController,
-    name: String,
-    initialValue: T? = null,
-    dependencies: Set<String> = emptySet(),
-    visible: Boolean = true,
-    validator: FieldValidator<T>? = null,
-    content: @Composable FieldRenderScope<T>.() -> Unit,
-) {
-    // 确保字段顺序在组合时就被记录
-    LaunchedEffect(Unit) {
-        controller.ensureFieldOrder(name)
-    }
-
-    val field = remember(name, visible) {
-        if (visible) controller.registerField(name, initialValue, dependencies, validator) else null
-    }
-
-    LaunchedEffect(visible) {
-        if (!visible) controller.unregisterField(name)
-    }
-
-    if (field != null && visible) {
-        val value by field.value
-        val error by field.error
-
-        FieldRenderScope(
-            value = value,
-            error = error,
-            onValueChange = { controller.updateField(name, it) }
-        ).content()
-    }
+fun <T> FormField(state: FieldState<T>, content: @Composable FieldRenderScope<T>.() -> Unit) {
+    val collector = LocalFormCollector.current
+    if (!collector.contains(state)) collector.add(state)
+    FieldRenderScope(
+        value = state.value,
+        onValueChange = { newValue -> state.value = newValue },
+        error = state.error
+    ).content()
 }

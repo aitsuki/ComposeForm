@@ -18,10 +18,16 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.aitsuki.compose.form.Form
 import com.aitsuki.compose.form.FormField
+import com.aitsuki.compose.form.rememberFieldState
 import com.aitsuki.compose.form.rememberFormController
 import com.aitsuki.compose.form.sample.LocalBackStack
 import com.aitsuki.compose.form.sample.Routes
@@ -30,78 +36,76 @@ import com.aitsuki.compose.form.sample.models.User
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen() {
-    val controller = rememberFormController()
     val context = LocalContext.current
     val backStack = LocalBackStack.current
+
+    val controller = rememberFormController()
+    var autoValidate by remember { mutableStateOf(false) }
+    val emailState = rememberFieldState("email", "") {
+        when {
+            it.isBlank() -> "请输入邮箱"
+            !Patterns.EMAIL_ADDRESS.matcher(it).matches() -> "邮箱格式不正确"
+            else -> null
+        }
+    }
+    val passwordState = rememberFieldState("password", "") {
+        when {
+            it.isBlank() -> "请输入密码"
+            it.length < 6 -> "密码长度最小为6"
+            it.length > 20 -> "密码长度最大为20"
+            else -> null
+        }
+    }
 
     Scaffold(
         modifier = Modifier.imePadding(),
         topBar = { CenterAlignedTopAppBar(title = { Text("登录") }) }
     ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(innerPadding)
-                .padding(24.dp),
-        ) {
-            FormField<String>(
-                controller = controller,
-                name = "email",
-                validator = { v ->
-                    when {
-                        v.isNullOrBlank() -> "请输入邮箱"
-                        !Patterns.EMAIL_ADDRESS.matcher(v).matches() -> "邮箱格式不正确"
-                        else -> null
-                    }
-                },
+        Form(controller = controller, autoValidate = autoValidate) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(innerPadding)
+                    .padding(24.dp),
             ) {
-                OutlinedTextField(
-                    modifier = Modifier.fillMaxWidth(),
-                    value = value.orEmpty(),
-                    onValueChange = onValueChange,
-                    label = { Text("邮箱") },
-                    isError = error != null,
-                    supportingText = { error?.let { Text(it) } },
-                )
-            }
-            FormField<String>(
-                controller = controller,
-                name = "password",
-                validator = { v ->
-                    when {
-                        v.isNullOrBlank() -> "请输入密码"
-                        v.length < 6 -> "密码长度最小为6"
-                        v.length > 20 -> "密码长度最大为20"
-                        else -> null
-                    }
+                FormField(emailState) {
+                    OutlinedTextField(
+                        modifier = Modifier.fillMaxWidth(),
+                        value = value.orEmpty(),
+                        onValueChange = onValueChange,
+                        label = { Text("邮箱") },
+                        isError = error != null,
+                        supportingText = { error?.let { Text(it) } },
+                    )
                 }
-            ) {
-                OutlinedTextField(
+                FormField(passwordState) {
+                    OutlinedTextField(
+                        modifier = Modifier.fillMaxWidth(),
+                        value = value.orEmpty(),
+                        onValueChange = onValueChange,
+                        label = { Text("密码") },
+                        isError = error != null,
+                        supportingText = { error?.let { Text(it) } }
+                    )
+                }
+                Spacer(Modifier.height(16.dp))
+                Button(
                     modifier = Modifier.fillMaxWidth(),
-                    value = value.orEmpty(),
-                    onValueChange = onValueChange,
-                    label = { Text("密码") },
-                    isError = error != null,
-                    supportingText = { error?.let { Text(it) } }
-                )
-            }
-            Spacer(Modifier.height(16.dp))
-            Button(
-                modifier = Modifier.fillMaxWidth(),
-                onClick = {
-                    if (controller.validate()) {
-                        Toast.makeText(context, "登录成功！", Toast.LENGTH_SHORT).show()
-                        val user = User(email = controller.value<String>("email").orEmpty())
-                        backStack.add(Routes.Profile(user))
-                        backStack.removeAll { it !is Routes.Profile }
-                    } else {
-                        controller.autoValidate = true
-                        Toast.makeText(context, "请检查表单错误", Toast.LENGTH_SHORT)
-                            .show()
-                    }
-                }) {
-                Text("登录")
+                    onClick = {
+                        if (controller.validateAll()) {
+                            Toast.makeText(context, "登录成功！", Toast.LENGTH_SHORT).show()
+                            val user = User(email = emailState.value)
+                            backStack.add(Routes.Profile(user))
+                            backStack.removeAll { it !is Routes.Profile }
+                        } else {
+                            autoValidate = true
+                            Toast.makeText(context, "请检查表单错误", Toast.LENGTH_SHORT)
+                                .show()
+                        }
+                    }) {
+                    Text("登录")
+                }
             }
         }
     }
