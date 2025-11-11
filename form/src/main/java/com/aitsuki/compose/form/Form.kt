@@ -90,7 +90,7 @@ fun Form(
 
 class FieldRenderScope<T>(
     val error: String?,
-    val value: T?,
+    val value: T,
     val onValueChange: (T) -> Unit,
 )
 

@@ -61,7 +61,7 @@ fun LoginScreen() {
         modifier = Modifier.imePadding(),
         topBar = { CenterAlignedTopAppBar(title = { Text("登录") }) }
     ) { innerPadding ->
-        Form(controller = controller, autoValidate = autoValidate) {
+        Form(controller,  autoValidate) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -72,7 +72,7 @@ fun LoginScreen() {
                 FormField(emailState) {
                     OutlinedTextField(
                         modifier = Modifier.fillMaxWidth(),
-                        value = value.orEmpty(),
+                        value = value,
                         onValueChange = onValueChange,
                         label = { Text("邮箱") },
                         isError = error != null,
@@ -82,7 +82,7 @@ fun LoginScreen() {
                 FormField(passwordState) {
                     OutlinedTextField(
                         modifier = Modifier.fillMaxWidth(),
-                        value = value.orEmpty(),
+                        value = value,
                         onValueChange = onValueChange,
                         label = { Text("密码") },
                         isError = error != null,

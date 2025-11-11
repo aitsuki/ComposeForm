@@ -111,7 +111,7 @@ fun RegisterScreen() {
                             .onGloballyPositioned {
                                 fieldPositions[emailState.key] = it.positionInParent().y
                             },
-                        value = value.orEmpty(),
+                        value = value,
                         onValueChange = onValueChange,
                         label = { Text("邮箱") },
                         isError = error != null,
@@ -159,7 +159,7 @@ fun RegisterScreen() {
                 if (occupationState.value != null && occupationState.value != "学生") {
                     FormField(annualIncomeState) {
                         OutlinedTextField(
-                            value = value ?: "",
+                            value = value,
                             onValueChange = onValueChange,
                             label = { Text("年收入") },
                             isError = error != null,
@@ -176,7 +176,7 @@ fun RegisterScreen() {
 
                 FormField(passwordState) {
                     OutlinedTextField(
-                        value = value ?: "",
+                        value = value,
                         onValueChange = onValueChange,
                         label = { Text("Password") },
                         isError = error != null,
@@ -191,7 +191,7 @@ fun RegisterScreen() {
 
                 FormField(confirmPasswordState) {
                     OutlinedTextField(
-                        value = value ?: "",
+                        value = value,
                         onValueChange = onValueChange,
                         label = { Text("确认密码") },
                         isError = error != null,
